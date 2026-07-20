@@ -1,0 +1,20 @@
+# gitsync configuration
+# Copy to ~/.config/gitsync/config.toml and adjust.
+
+# Seconds between passes when running as a background agent.
+interval = 300
+
+# Optional: where to write logs (default: ~/.local/state/gitsync/gitsync.log)
+# log_file = "~/.local/state/gitsync/gitsync.log"
+
+# One [[repo]] block per directory. Each must already be a git working tree
+# with a remote configured (e.g. `git clone` or `git remote add origin ...`).
+
+[[repo]]
+path = "~/.dotfiles"
+# remote = "origin"      # default
+# conflict = "manual"    # manual | ours | theirs (default: manual)
+
+[[repo]]
+path = "~/Notes"
+conflict = "theirs"       # on a clash, prefer whatever came from the remote

@@ -1,0 +1,16 @@
+[project]
+name = "gitsync"
+version = "0.1.0"
+description = "Keep local directories in sync with git as the source of truth"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+gitsync = "gitsync.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["gitsync"]
