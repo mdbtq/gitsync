@@ -57,7 +57,12 @@ gitsync add ~/.dotfiles     # register a git working tree
 gitsync add ~/Notes
 gitsync status              # show clean / ahead / behind / local changes
 gitsync sync                # run one pass over all repos
+gitsync remove ~/Notes      # stop syncing it; the directory stays put
 ```
+
+`remove` only edits the config — it never touches the directory or its git
+history, so the repo keeps working as a normal git checkout. It also works for
+a directory you have already deleted.
 
 Config lives at `~/.config/gitsync/config.toml` (see `config.example.toml`).
 

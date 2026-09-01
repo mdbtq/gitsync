@@ -96,6 +96,77 @@ def cmd_add(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_remove(args: argparse.Namespace) -> int:
+    path = Path(args.directory).expanduser().resolve()
+    config_path = args.config or DEFAULT_CONFIG_PATH
+
+    if not config_path.exists():
+        print(f"error: no config at {config_path}", file=sys.stderr)
+        return 2
+
+    lines = config_path.read_text().splitlines(keepends=True)
+    block = _find_repo_block(lines, path)
+    if block is None:
+        print(f"{path} is not configured.", file=sys.stderr)
+        return 1
+
+    start, end = block
+    del lines[start:end]
+    config_path.write_text("".join(lines))
+    print(f"Removed {path} from {config_path}")
+    print("The directory itself was left untouched.")
+    return 0
+
+
+def _find_repo_block(lines: list[str], path: Path) -> tuple[int, int] | None:
+    """Locate the ``[[repo]]`` block for ``path`` as a ``[start, end)`` line range.
+
+    Works on the raw text rather than a parsed document so that comments and
+    formatting elsewhere in the file survive the edit. The range starts at the
+    ``[[repo]]`` header (including any comment lines directly above it) and ends
+    just before the next table header.
+
+    Trailing blank lines are taken with the block, but the blank line *above* it
+    is left alone: that one separates the preceding section from what follows,
+    so absorbing it would weld the previous section onto the next block.
+    """
+    for i, line in enumerate(lines):
+        if line.strip() != "[[repo]]":
+            continue
+        end = len(lines)
+        for j in range(i + 1, len(lines)):
+            if lines[j].lstrip().startswith("["):
+                end = j
+                break
+        if _block_path(lines[i:end]) != path:
+            continue
+        # Absorb comment lines immediately above the header: they document this
+        # block, not the one that follows it.
+        start = i
+        while start > 0 and lines[start - 1].strip().startswith("#"):
+            start -= 1
+        # A block owns exactly one blank separator. Prefer the one below it; if
+        # there is none (this is the last block) fall back to the one above, so
+        # the file neither gains a double blank line nor loses its spacing.
+        while end < len(lines) and not lines[end].strip():
+            end += 1
+        if end == len(lines):
+            while start > 0 and not lines[start - 1].strip():
+                start -= 1
+        return start, end
+    return None
+
+
+def _block_path(block: list[str]) -> Path | None:
+    """Resolve the ``path`` key of a single ``[[repo]]`` block, if it has one."""
+    try:
+        entry = tomllib.loads("".join(block)).get("repo", [{}])[0]
+    except tomllib.TOMLDecodeError:
+        return None
+    raw = entry.get("path")
+    return Path(raw).expanduser().resolve() if raw else None
+
+
 def _read_paths(config_path: Path) -> set[str]:
     if not config_path.exists():
         return set()
@@ -143,6 +214,10 @@ def build_parser() -> argparse.ArgumentParser:
     add = sub.add_parser("add", help="add a git directory to the config")
     add.add_argument("directory", help="path to a git working tree")
     add.set_defaults(func=cmd_add)
+
+    remove = sub.add_parser("remove", help="stop syncing a directory (leaves it in place)")
+    remove.add_argument("directory", help="path to a configured working tree")
+    remove.set_defaults(func=cmd_remove)
 
     sub.add_parser("install", help="install background agent (macOS/launchd)").set_defaults(func=cmd_install)
     sub.add_parser("uninstall", help="remove the background agent").set_defaults(func=cmd_uninstall)
