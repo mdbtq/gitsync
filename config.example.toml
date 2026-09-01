@@ -22,3 +22,9 @@ path = "~/.dotfiles"
 [[repo]]
 path = "~/Notes"
 conflict = "theirs"       # on a clash, prefer whatever came from the remote
+
+[[repo]]
+path = "~/work"
+# Only sync these branches; any other checked-out branch is skipped entirely.
+# Exact names or globs. Omit the key to sync whatever branch is checked out.
+branches = ["main", "release/*"]

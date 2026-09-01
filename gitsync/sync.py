@@ -21,6 +21,7 @@ from .gitutil import (
 
 class Status(Enum):
     OK = "ok"              # sync completed (may or may not have transferred anything)
+    SKIPPED = "skipped"    # nothing attempted (e.g. branch not in the allow-list)
     CONFLICT = "conflict"  # merge conflict left for manual resolution
     ERROR = "error"        # something went wrong (not a repo, network, etc.)
 
@@ -48,6 +49,9 @@ def sync_repo(repo: RepoConfig) -> SyncResult:
     2. commit any local changes
     3. merge the remote branch into the local branch
     4. push
+
+    Repos configured with a ``branches`` allow-list are skipped entirely while a
+    branch outside it is checked out — no fetch, no commit, no push.
     """
     path = repo.path
     fail = lambda msg: SyncResult(path, Status.ERROR, msg)
@@ -62,6 +66,13 @@ def sync_repo(repo: RepoConfig) -> SyncResult:
     branch = current_branch(path)
     if branch is None:
         return fail("detached HEAD; check out a branch to sync")
+
+    # Checked before anything touches the network or the working tree, so an
+    # excluded branch is left exactly as the user left it.
+    if not repo.syncs_branch(branch):
+        return SyncResult(
+            path, Status.SKIPPED, f"branch {branch!r} is not configured for syncing"
+        )
 
     fetch = git(path, "fetch", "--quiet", repo.remote, branch)
     # A missing remote branch is fine (first push); other fetch errors are not.

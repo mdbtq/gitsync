@@ -10,10 +10,12 @@ The config is a small TOML file. A minimal example::
     [[repo]]
     path = "~/Notes"
     conflict = "theirs"
+    branches = ["main"]
 """
 
 from __future__ import annotations
 
+import fnmatch
 import os
 import tomllib
 from dataclasses import dataclass, field
@@ -44,6 +46,15 @@ class RepoConfig:
     #   "ours"    -> prefer this machine's version on conflicting hunks
     #   "theirs"  -> prefer the remote version on conflicting hunks
     conflict: str = "manual"
+    # Branches this repo may sync, as exact names or globs ("release/*").
+    # Empty means no restriction: sync whatever branch is checked out.
+    branches: tuple[str, ...] = ()
+
+    def syncs_branch(self, branch: str) -> bool:
+        """True if ``branch`` is allowed to sync for this repo."""
+        if not self.branches:
+            return True
+        return any(fnmatch.fnmatchcase(branch, pat) for pat in self.branches)
 
 
 @dataclass(frozen=True)
@@ -73,11 +84,18 @@ def load(path: Path | None = None) -> Config:
                 f"Invalid conflict strategy {conflict!r} for {entry['path']}; "
                 f"expected one of {', '.join(CONFLICT_STRATEGIES)}"
             )
+        branches = entry.get("branches", [])
+        if isinstance(branches, str) or not all(isinstance(b, str) for b in branches):
+            raise ConfigError(
+                f"'branches' for {entry['path']} must be a list of strings, "
+                f'e.g. branches = ["main"]'
+            )
         repos.append(
             RepoConfig(
                 path=Path(entry["path"]).expanduser(),
                 remote=entry.get("remote", "origin"),
                 conflict=conflict,
+                branches=tuple(branches),
             )
         )
 

@@ -35,6 +35,10 @@ def cmd_sync(args: argparse.Namespace) -> int:
         result = sync_repo(repo)
         if result.status is Status.OK:
             logger.info("%s: %s", result.repo, result.message)
+        elif result.status is Status.SKIPPED:
+            # A normal state (e.g. working on a feature branch), not a problem:
+            # logged for the record, but never notified and never non-zero.
+            logger.info("%s: %s", result.repo, result.message)
         elif result.status is Status.CONFLICT:
             logger.warning("%s: %s", result.repo, result.message)
             notify("gitsync: conflict", f"{result.repo}\n{result.message}")
@@ -58,6 +62,9 @@ def cmd_status(args: argparse.Namespace) -> int:
             print(f"  ?  {path}  (not a git repository)")
             continue
         branch = current_branch(path) or "(detached)"
+        if not repo.syncs_branch(branch):
+            print(f"  -  {path}  [{branch}]  not synced (branch excluded)")
+            continue
         flags = []
         if is_dirty(path):
             flags.append("local changes")
