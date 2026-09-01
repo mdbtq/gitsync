@@ -69,19 +69,60 @@ pip install -e .                # into the current environment
 
 ## Usage
 
-```sh
-gitsync add ~/.dotfiles     # register a git working tree
-gitsync add ~/Notes
-gitsync status              # show clean / ahead / behind / local changes
-gitsync sync                # run one pass over all repos
-gitsync remove ~/Notes      # stop syncing it; the directory stays put
-```
+Run `gitsync` with no arguments for the same overview on the command line.
+
+### Commands
+
+| command | what it does |
+|---------|--------------|
+| `gitsync add <dir>` | register a git working tree in the config |
+| `gitsync remove <dir>` | stop syncing a directory; the directory stays put |
+| `gitsync status` | per repo: branch, clean / local changes / ahead / behind |
+| `gitsync sync` | run one pass over all repos (fetch, commit, merge, push) |
+| `gitsync install` | install the background agent (macOS/launchd) |
+| `gitsync uninstall` | remove the background agent |
 
 `remove` only edits the config — it never touches the directory or its git
 history, so the repo keeps working as a normal git checkout. It also works for
 a directory you have already deleted.
 
+### Global options
+
+| option | what it does |
+|--------|--------------|
+| `-c`, `--config <file>` | use a different config file (default: `~/.config/gitsync/config.toml`) |
+| `-v`, `--verbose` | debug logging |
+| `--version` | print the version |
+| `-h`, `--help` | help; also works per command, e.g. `gitsync add --help` |
+
+### Typical session
+
+```sh
+gitsync add ~/.dotfiles     # register a git working tree
+gitsync add ~/Notes
+gitsync status              # show clean / ahead / behind / local changes
+gitsync sync                # run one pass over all repos
+gitsync install             # from here on it runs by itself
+```
+
+### Config
+
 Config lives at `~/.config/gitsync/config.toml` (see `config.example.toml`).
+
+| key | scope | meaning |
+|-----|-------|---------|
+| `interval` | global | seconds between background passes (default: `300`) |
+| `log_file` | global | log location (default: `~/.local/state/gitsync/gitsync.log`) |
+| `path` | `[[repo]]` | the working tree to sync (required) |
+| `remote` | `[[repo]]` | git remote to sync against (default: `origin`) |
+| `conflict` | `[[repo]]` | `manual` (default) \| `ours` \| `theirs` — see [Conflicts](#conflicts) |
+| `branches` | `[[repo]]` | branches this repo may sync, exact names or globs — see [Limiting which branches sync](#limiting-which-branches-sync) |
+
+### Exit codes
+
+`sync` exits `0` when every repo synced or was skipped, `1` when any repo hit a
+conflict or an error (each one also raises a desktop notification), and `2` on a
+bad config or invalid arguments.
 
 ### Run it automatically (macOS)
 

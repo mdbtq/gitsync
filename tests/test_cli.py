@@ -452,3 +452,12 @@ def test_add_resolves_a_tilde_argument(cfg, isolated_home):
 
     assert add(cfg, "~/Notes") == 0
     assert f'path = "{repo}"' in cfg.read_text()
+
+
+def test_bare_invocation_prints_the_command_overview(capsys):
+    """A bare `gitsync` is a request for orientation, not a usage error."""
+    assert main([]) == 0
+
+    out = capsys.readouterr().out
+    for command in ("sync", "status", "add", "remove", "install", "uninstall"):
+        assert command in out

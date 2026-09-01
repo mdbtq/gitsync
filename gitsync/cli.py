@@ -205,8 +205,34 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
     return 0
 
 
+DESCRIPTION = """\
+Keep local git working trees in sync across machines.
+
+Each pass commits your local changes, merges the remote branch and pushes,
+per directory registered in the config."""
+
+EPILOG = f"""\
+examples:
+  gitsync add ~/.dotfiles     register a git working tree
+  gitsync status              show clean / ahead / behind / local changes
+  gitsync sync                run one pass over all repos
+  gitsync install             run `gitsync sync` in the background (macOS)
+  gitsync remove ~/Notes      stop syncing it; the directory stays put
+
+config:
+  {DEFAULT_CONFIG_PATH}
+  Per repo you can set `remote`, `conflict` (manual | ours | theirs) and
+  `branches` (exact names or globs) — see config.example.toml.
+"""
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="gitsync", description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="gitsync",
+        description=DESCRIPTION,
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--version", action="version", version=f"gitsync {__version__}")
     parser.add_argument(
         "-c", "--config", type=lambda p: Path(p).expanduser(),
@@ -214,7 +240,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="debug logging")
 
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", metavar="<command>")
     sub.add_parser("sync", help="run one sync pass over all repos").set_defaults(func=cmd_sync)
     sub.add_parser("status", help="show the state of each repo").set_defaults(func=cmd_status)
 
@@ -234,6 +260,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    # No subcommand: show the overview instead of an argparse usage error, so
+    # a bare `gitsync` tells you what the tool does and what it can do.
+    if not hasattr(args, "func"):
+        parser.print_help()
+        return 0
     return args.func(args)
 
 
