@@ -10,10 +10,13 @@ touched.
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
+from gitsync import launchd
 from gitsync.cli import main
 
 from conftest import init_repo
@@ -461,3 +464,83 @@ def test_bare_invocation_prints_the_command_overview(capsys):
     out = capsys.readouterr().out
     for command in ("sync", "status", "add", "remove", "install", "uninstall"):
         assert command in out
+
+
+# --------------------------------------------------------------------------
+# status: the background agent line
+# --------------------------------------------------------------------------
+
+@pytest.fixture
+def plist(tmp_path, monkeypatch) -> Path:
+    """Redirect the agent plist into tmp_path.
+
+    ``PLIST_PATH`` resolves ``~`` at import time, so the autouse ``HOME``
+    override does not reach it; it has to be patched on the module.
+    """
+    path = tmp_path / "com.gitsync.agent.plist"
+    monkeypatch.setattr(launchd, "PLIST_PATH", path)
+    return path
+
+
+def fake_launchctl(monkeypatch, *, returncode: int, stdout: str = "") -> None:
+    """Stand in for `launchctl list`, so tests never touch the real launchd."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(
+        launchd.subprocess,
+        "run",
+        lambda *a, **kw: subprocess.CompletedProcess(a[0], returncode, stdout, ""),
+    )
+
+
+def status(cfg: Path) -> int:
+    return main(["-c", str(cfg), "status"])
+
+
+def test_status_reports_a_loaded_agent(cfg, plist, monkeypatch, capsys):
+    write(cfg, "interval = 300\n")
+    plist.write_text("")
+    fake_launchctl(monkeypatch, returncode=0, stdout='\t"LastExitStatus" = 0;\n')
+
+    assert status(cfg) == 0
+
+    out = capsys.readouterr().out
+    assert "scheduled" in out
+    assert "every 300s" in out
+
+
+def test_status_distinguishes_installed_from_loaded(cfg, plist, monkeypatch, capsys):
+    """A plist on disk that launchd does not know about means nothing syncs."""
+    write(cfg, "interval = 300\n")
+    plist.write_text("")
+    fake_launchctl(monkeypatch, returncode=113)
+
+    assert status(cfg) == 0
+    assert "installed but not loaded" in capsys.readouterr().out
+
+
+def test_status_reports_a_missing_agent(cfg, plist, monkeypatch, capsys):
+    write(cfg, "interval = 300\n")
+    fake_launchctl(monkeypatch, returncode=113)
+
+    assert status(cfg) == 0
+
+    out = capsys.readouterr().out
+    assert "not installed" in out
+    assert "every 300s" not in out
+
+
+def test_status_surfaces_a_failing_last_run(cfg, plist, monkeypatch, capsys):
+    write(cfg, "interval = 300\n")
+    plist.write_text("")
+    fake_launchctl(monkeypatch, returncode=0, stdout='\t"LastExitStatus" = 1;\n')
+
+    assert status(cfg) == 0
+    assert "the last run exited 1" in capsys.readouterr().out
+
+
+def test_status_says_so_on_a_non_macos_platform(cfg, plist, monkeypatch, capsys):
+    write(cfg, "interval = 300\n")
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    assert status(cfg) == 0
+    assert "not supported on this platform" in capsys.readouterr().out

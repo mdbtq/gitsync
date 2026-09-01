@@ -52,6 +52,12 @@ def cmd_sync(args: argparse.Namespace) -> int:
 
 def cmd_status(args: argparse.Namespace) -> int:
     config = _load_config(args)
+    agent = launchd.status()
+    print(f"Background agent: {agent.describe()}")
+    if agent.loaded:
+        print(f"  every {config.interval}s, logging to {config.log_file}")
+    print()
+
     if not config.repos:
         print("No repositories configured.")
         return 0

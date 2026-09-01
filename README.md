@@ -77,7 +77,7 @@ Run `gitsync` with no arguments for the same overview on the command line.
 |---------|--------------|
 | `gitsync add <dir>` | register a git working tree in the config |
 | `gitsync remove <dir>` | stop syncing a directory; the directory stays put |
-| `gitsync status` | per repo: branch, clean / local changes / ahead / behind |
+| `gitsync status` | whether the background agent is scheduled, then per repo: branch, clean / local changes / ahead / behind |
 | `gitsync sync` | run one pass over all repos (fetch, commit, merge, push) |
 | `gitsync install` | install the background agent (macOS/launchd) |
 | `gitsync uninstall` | remove the background agent |
