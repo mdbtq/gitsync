@@ -2,9 +2,13 @@
 # Copy to ~/.config/gitsync/config.toml and adjust.
 
 # Seconds between passes when running as a background agent.
+# Baked into the launchd plist at install time: re-run `gitsync install` after
+# changing this. (Repo entries below are re-read every pass, so they need no
+# reinstall.)
 interval = 300
 
 # Optional: where to write logs (default: ~/.local/state/gitsync/gitsync.log)
+# Also baked into the plist; re-run `gitsync install` after changing it.
 # log_file = "~/.local/state/gitsync/gitsync.log"
 
 # One [[repo]] block per directory. Each must already be a git working tree

@@ -73,6 +73,13 @@ gitsync install            # launchd agent, runs `gitsync sync` every `interval`
 gitsync uninstall
 ```
 
+Each tick starts a fresh `gitsync sync` that re-reads the config, so `add` and
+`remove` take effect on the next pass — no restart needed.
+
+`interval` and `log_file` are the exception: they are written into the launchd
+plist at install time, not read at runtime. After changing either one, re-run
+`gitsync install` to rewrite and reload the agent.
+
 On Linux, schedule `gitsync sync` with cron or a systemd timer.
 
 ## Notes & limitations
